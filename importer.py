@@ -94,7 +94,8 @@ class MessageInfoExtractor(object):
             'filename': np.array(self.data_filename),
             'messageid': np.array(self.data_messageid),
             'hot-ones': np.array(self.data_hot_ones, dtype=np.bool),
-            'labels' : np.array(self.data_labels, dtype=np.bool)
+            'labels' : np.array(self.data_labels, dtype=np.bool),
+            'rules' : self.rule_directory.reverse
         }
 
 class RulesDirectory(object):
