@@ -4,6 +4,7 @@
 import mailbox
 import pickle
 import numpy as np
+import re
 
 #spam_folders = ['reclass', 'Junk', 'spam']
 ## This is the general mb, containing no mail, only folders
@@ -60,12 +61,16 @@ class MessageInfoExtractor(object):
     @staticmethod
     def _extract_rules_from_message(message):
         spam_status = message['X-Spam-Status']
-        splitted_status = spam_status.replace('\n\t', '').split(' ')
-        try:
-            tests = next(x for x in splitted_status if x.startswith('tests='))
-        except StopIteration:
+        spam_status = spam_status.replace('\n\t', '')
+        re_match = re.search('tests=(.*)autolearn=', spam_status)
+        if re_match is None:
             return None
-        matched_rules = tests.split('=')[1].split(',')
+        test_string = re_match.group(1)
+        # two sub needed. the RE should be modified to avoid that
+        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        matched_rules = test_string.split(',')
+        matched_rules = [x for x in matched_rules if x != '' and x != 'none']
         return matched_rules
 
     def _convert_rules_to_numbers(self, rule_list):
