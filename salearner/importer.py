@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-
 """Import SA info from Mailbox and create a pickle file."""
-import mailbox
-import pickle
-import numpy as np
-import re
 
-#spam_folders = ['reclass', 'Junk', 'spam']
-## This is the general mb, containing no mail, only folders
-#mb = mailbox.Maildir('./mail-data/', create=False)
+import re
+import pickle
+import mailbox
+import numpy as np
 
 class MessageInfoExtractor(object):
     """Extract SA data from emails"""
@@ -107,8 +103,8 @@ class MailParser(object):
             return None
         test_string = re_match.group(1)
         # two sub needed. the RE should be modified to avoid that
-        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
-        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        test_string = re.sub(r'([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        test_string = re.sub(r'([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
         matched_rules = test_string.split(',')
         matched_rules = [x for x in matched_rules if x != '' and x != 'none']
         return matched_rules
