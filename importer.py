@@ -31,8 +31,6 @@ class MessageInfoExtractor(object):
             folder = maildir.get_folder(folder_name)
             # TODO need to "map/reduce" that part
             for filename, message in folder.items():
-                if not self._is_message_good_candidate(message):
-                    continue
                 info = self._extract_info(filename, message, folder_name)
                 if info is not None:
                     self.data_filename.append(info[0])
@@ -49,43 +47,18 @@ class MessageInfoExtractor(object):
 
     def _extract_info(self, filename, message, folder_name):
         # TODO refacto needed, the folder_name shouldn't be here
-        # TODO Bug: parsing not 100% accurate: 'LOTS_OF_MONEYautolearn'
-        #      '[BAYES_50', 'none'
-        rules_matched = self._extract_rules_from_message(message)
+        rules_matched = MailParser(message).sa_matched_rules
         if rules_matched is None:
             return None
         rule_numbers = self._convert_rules_to_numbers(rules_matched)
         return (filename, message['Message-Id'], rule_numbers,
                 folder_name in self.spam_folders)
 
-    @staticmethod
-    def _extract_rules_from_message(message):
-        spam_status = message['X-Spam-Status']
-        spam_status = spam_status.replace('\n\t', '')
-        re_match = re.search('tests=(.*)autolearn=', spam_status)
-        if re_match is None:
-            return None
-        test_string = re_match.group(1)
-        # two sub needed. the RE should be modified to avoid that
-        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
-        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
-        matched_rules = test_string.split(',')
-        matched_rules = [x for x in matched_rules if x != '' and x != 'none']
-        return matched_rules
-
     def _convert_rules_to_numbers(self, rule_list):
         res = []
         for rule in rule_list:
             res.append(self.rule_directory.get_rule_number(rule))
         return res
-
-    @staticmethod
-    def _is_message_good_candidate(message):
-        """ Return true is the message is read and have been scanned by SA """
-        if 'X-Spam-Status' not in message or \
-            'S' not in message.get_flags():
-            return False
-        return True
 
     def _convert_to_hot_ones(self):
         nb_rules = len(self.rule_directory.reverse)
@@ -102,6 +75,43 @@ class MessageInfoExtractor(object):
             'labels' : np.array(self.data_labels, dtype=np.bool),
             'rules' : self.rule_directory.reverse
         }
+
+class MailParser(object):
+    """ Parse a single mail for SA information """
+    def __init__(self, message):
+        self.message = message
+
+    @property
+    def sa_matched_rules(self):
+        """ returns SA matched rules.
+
+        Returns:
+            list: list of rules matched
+            None: if the message should be discarded
+        """
+        return None if not self._is_message_good_candidate() \
+                else self._extract_rules_from_message()
+
+    def _is_message_good_candidate(self):
+        """ Return true is the message is read and have been scanned by SA """
+        if 'X-Spam-Status' not in self.message or \
+            'S' not in self.message.get_flags():
+            return False
+        return True
+
+    def _extract_rules_from_message(self):
+        spam_status = self.message['X-Spam-Status']
+        spam_status = spam_status.replace('\n\t', '')
+        re_match = re.search('tests=(.*)autolearn=', spam_status)
+        if re_match is None:
+            return None
+        test_string = re_match.group(1)
+        # two sub needed. the RE should be modified to avoid that
+        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        test_string = re.sub('([\s\[\]]|[=:]-?\d+(?:\.\d+)?)', '', test_string)
+        matched_rules = test_string.split(',')
+        matched_rules = [x for x in matched_rules if x != '' and x != 'none']
+        return matched_rules
 
 class RulesDirectory(object):
     """Keep accounting of SA rules"""
